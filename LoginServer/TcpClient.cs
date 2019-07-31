@@ -12,7 +12,7 @@ namespace LoginServer
 
     // public delegate void OnReceivedCompleted(List<byte>mcontent);
     public delegate void OnReceivedCompleted(byte[] buffer);
-    public delegate void OnFileReceivedCompleted(String content);
+    public delegate void OnFileReceivedCompleted(ref String content);
     class TCPClient
     {
         public String map { private set; get; }
@@ -22,6 +22,7 @@ namespace LoginServer
 
         String TCPClient_username;
         String TCPClient_password;
+        String TCPClient_MapName;
         /// <summary>
         /// //////////////////////////////////////////////
         /// </summary>
@@ -37,7 +38,8 @@ namespace LoginServer
         bool isfile = false;
         bool isfilegoing = false;
         bool isclientsidefilereceiveok = false;
-
+        String[] receives;
+        Int32 filelength;
         Thread ReceiveThread;
         Thread SendFileThread;
         public TCPClient(Socket msocket)
@@ -46,6 +48,7 @@ namespace LoginServer
             clientsocket = msocket;
             OnReceivedCompletePointer += messagehandler;
             onfilereceivedcompleted += ReceiveFilehandler;
+           // onfilereceivedcompleted += (ref String s) => { Send("hi completed!");  };
             ReceiveThread = new Thread(new ThreadStart(ReceiveLoop));
             ReceiveThread.IsBackground = true;
             ReceiveThread.Start();
@@ -99,9 +102,23 @@ namespace LoginServer
         {
             clientsocket.Close();
         }
-        void ReceiveFilehandler(String str)
+        void ReceiveFilehandler(ref String str)
         {
 
+            MySQLOperation msqlo = MySQLOperation.getinstance();
+            string cmd = String.Format(
+             "SELECT {0} FROM {1} WHERE UserName='{2}'", TCPClient_MapName, MySQLOperation.tablebasename, TCPClient_username
+            );
+            bool b = msqlo.find(cmd);
+            if (!b)
+            {
+                msqlo.addcolumnv1(TCPClient_MapName);
+            }
+            cmd = String.Format(
+                  " UPDATE {0} SET {1} = '{2}' WHERE UserName='{3}'", MySQLOperation.tablebasename, TCPClient_MapName, filestringpayload, TCPClient_username
+                   );
+            msqlo.modify(cmd);
+            filestringpayload = null;
         }
         void sendfilework(Object pobject)
         {
@@ -142,43 +159,59 @@ namespace LoginServer
 #else
             var str = System.Text.Encoding.UTF8.GetString(buffer);
 #endif
-                int len = str.Length;
-                string filestr = "{\r\n\t\"mT\": \"FILE";
-                string filestrmobile = "{\n\t\"mT\": \"FILE";
-                string fileendstr = "{\r\n\t\"mT\": \"FILEEND";
-                string fileendstrmobile = "{\n\t\"mT\": \"FILEEND";
-                if (isfile)
+            var strfile = System.Text.Encoding.UTF8.GetString(buffer);
+                String[] seperator = {"\r\n"};
+                receives = strfile.Split(seperator, StringSplitOptions.RemoveEmptyEntries);
+                //"POST / HTTP/1.1"
+                //"Accept: */*"
+                //"Accept-Encoding: deflate, gzip"
+                //"User-Agent: X-UnrealEngine-Agent"
+                //"Content-Type: application/json"
+                //"Accepts: application/json"
+                //"UserName: 002"
+                //"Password: 123"
+                //"Content-Length: 2"
+                //"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                string[] seperator1 = { "\0" };
+                if (!isfile)
                 {
-                    FMessagePackage filesend = new FMessagePackage();
-                    String strsend;
-                    if (str.StartsWith(fileendstr)|| str.StartsWith(fileendstrmobile))
+                    bool b = receives.Length == 12 && receives[0].Equals("POST / HTTP/1.1");
+                    if (b)
                     {
-                        int size = filestringpayload.Length;
-                        isfile = false;
-                        onfilereceivedcompleted?.Invoke(filestringpayload);
-                        filesend.MT = MessageType.FILERECEIVEOK;//receive ok           
-                        strsend = JsonConvert.SerializeObject(filesend);
-                        Send(strsend);
+                        string length = receives[10].Split(':')[1];
+                        if (!Int32.TryParse(length, out filelength))
+                        {
+                        }
+                        TCPClient_username = receives[7].Split(':')[1].Replace(" ", String.Empty);
+                        TCPClient_password = receives[8].Split(':')[1].Replace(" ", String.Empty);
+                        TCPClient_MapName = receives[9].Split(':')[1].Replace(" ", String.Empty);
+                        String[] contents = receives[11].Split(seperator1, StringSplitOptions.RemoveEmptyEntries);
+                        if (contents.Length > 0)
+                        {
+                            filestringpayload = contents[0];
+                            if (filestringpayload.Length == filelength)
+                            {
+                                onfilereceivedcompleted.Invoke(ref filestringpayload);
+                            }
+                        }
+                        isfile = true;
                         return;
                     }
-
-                    filestringpayload += str;
-                    int size1 = filestringpayload.Length;
-                    filesend.MT = MessageType.FILE;//go on             
-                    strsend = JsonConvert.SerializeObject(filesend);
-                    Send(strsend);
+                    //message windows here
+                }
+                else{
+                    String[] contents = strfile.Split(seperator1, StringSplitOptions.RemoveEmptyEntries);
+                    if (contents.Length > 0)
+                    {
+                        filestringpayload += contents[0];
+                        if (filestringpayload.Length == filelength)
+                        {
+                            onfilereceivedcompleted.Invoke(ref filestringpayload);
+                        }
+                    }
                     return;
                 }
-                if (str.StartsWith(filestr)|| str.StartsWith(filestrmobile))
-                {
-                    FMessagePackage filesend = new FMessagePackage();
-                    String strsend;
-                    isfile = true;
-                    filesend.MT = MessageType.FILE;//go on             
-                    strsend = JsonConvert.SerializeObject(filesend);
-                    Send(strsend);
-                    return;
-                }
+      
                 mp = JsonConvert.DeserializeObject<FMessagePackage>(str);
                 String[] payloads;
                 switch (mp.MT)

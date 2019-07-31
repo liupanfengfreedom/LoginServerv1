@@ -40,6 +40,8 @@ namespace LoginServer
     }
     class Program
     {
+        
+
         static List<TCPClient> singinpool = new List<TCPClient>();
         private static readonly object singinLock = new object();
         static void Main(string[] args)
