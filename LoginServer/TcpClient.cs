@@ -55,6 +55,9 @@ namespace LoginServer
         }
         ~TCPClient()
         {
+            mclosed = true;
+            CloseSocket();
+            ReceiveThread.Abort();
             Console.WriteLine("TCPClient In destructor.");
         }
         public void Send(byte[] buffer)
