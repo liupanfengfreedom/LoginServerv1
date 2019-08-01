@@ -9,11 +9,11 @@ namespace LoginServer
 {
     public class MySQLOperation
     {
-        private readonly object ReadLock = new object();
-        static MySQLOperation instance;
+      //private readonly object ReadLock = new object();
+        private static readonly object ReadLock = new object();
         MySqlConnection connection = null;
-        public static readonly String databasename = "usersdatabase";
-        public static readonly String tablebasename = "usersinfor";
+        public static readonly String databasename = "usersdatabase2";
+        public static readonly String tablebasename = "usersinfor2";
         public MySQLOperation()
         {
             //string dbinfor = @"server=localhost;user=root;port=3306;password=41282619900;database=my_db";
@@ -33,19 +33,23 @@ namespace LoginServer
         }
         public static MySQLOperation getinstance()
         {
-            if (instance == null)
-            {
-                instance = new MySQLOperation();
+                MySQLOperation instance = new MySQLOperation();
                 bool b = instance.opendatabase();
                 if (!b)
                 {
                     Console.WriteLine("open database Error: ");
                 }
-                instance.createdatabase(databasename);
+                bool b1 = instance.databaseexist(databasename);
+                if (!b1)
+                {
+                    instance.createdatabase(databasename);
+                }
                 instance.connection.ChangeDatabase(databasename);
-                instance.creatusersstable(databasename, tablebasename);
-                //instance.creatfriendstable(databasename,"hitable");
-            }
+                bool b2 = instance.tableeexist(databasename, tablebasename);
+                if (!b2)
+                {
+                    instance.creatusersstable(databasename, tablebasename);
+                }
             return instance;
         }
         ~MySQLOperation()
@@ -69,6 +73,84 @@ namespace LoginServer
         public void closedatabase()
         {
             connection?.Close();
+        }
+        private bool databaseexist(string databasename)
+        {
+            String command = String.Format(
+                        "SELECT IF(EXISTS (SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{0}'), 'Yes','No')  ", databasename
+                        );
+             MySqlDataReader rdr = null;
+            try
+            {
+                MySqlCommand cmd = new MySqlCommand(command, connection);
+                rdr = cmd.ExecuteReader();
+                int column = rdr.FieldCount;
+                if (rdr.Read())
+                {
+                    string o = (string)rdr[0];
+                    if (o.Equals("Yes"))
+                    {
+                        return true;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+            }
+            catch (MySqlException ex)
+            {
+                Console.WriteLine("Error: {0}", ex.ToString());
+
+            }
+            finally
+            {
+                if (rdr != null)
+                {
+                    rdr.Close();
+                }
+
+            }
+            return false;
+        }
+        private bool tableeexist(string databasename, string tablename)
+        {
+            String command = String.Format(
+                        "SELECT IF(EXISTS (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '{0}' AND table_name = '{1}' ), 'Yes','No')  ", databasename, tablename
+                        );
+            MySqlDataReader rdr = null;
+            try
+            {
+                MySqlCommand cmd = new MySqlCommand(command, connection);
+                rdr = cmd.ExecuteReader();
+                int column = rdr.FieldCount;
+                if (rdr.Read())
+                {
+                    string o = (string)rdr[0];
+                    if (o.Equals("Yes"))
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            catch (MySqlException ex)
+            {
+                Console.WriteLine("Error: {0}", ex.ToString());
+
+            }
+            finally
+            {
+
+                if (rdr != null)
+                {
+                    rdr.Close();
+                }
+
+            }
+            return false;
         }
         public bool find(String command)
         {
@@ -300,11 +382,11 @@ namespace LoginServer
                     cmd.Prepare();
                     cmd.ExecuteNonQuery();
                 }
-                //catch (MySqlException ex)
-                catch//if table already exist it will throw an exception
+                catch (MySqlException ex)
+                //catch//if table already exist it will throw an exception
                 {
-                    //Console.WriteLine("Error: {0}", ex.ToString());
-                    Console.WriteLine("some Error: maybe exist");
+                    Console.WriteLine("Error: {0}", ex.ToString());
+                    //Console.WriteLine("some Error: maybe exist");
 
                 }
                 finally
@@ -384,11 +466,11 @@ namespace LoginServer
                     cmd.Prepare();
                     cmd.ExecuteNonQuery();
                 }
-                //catch (MySqlException ex)
-                catch//if database already exist it will throw an exception
+                catch (MySqlException ex)
+              //  catch//if database already exist it will throw an exception
                 {
-                    //Console.WriteLine("Error: {0}", ex.ToString());
-                    Console.WriteLine("some Error: maybe exist");
+                    Console.WriteLine("Error: {0}", ex.ToString());
+                   // Console.WriteLine("some Error: maybe exist");
 
                 }
                 finally
