@@ -175,7 +175,7 @@ namespace LoginServer
                 string[] seperator1 = { "\0" };
                 if (!isfile)
                 {
-                    bool b = receives.Length == 12 && receives[0].Equals("POST / HTTP/1.1");
+                    bool b = receives[0].Equals("POST / HTTP/1.1") && receives[10].Contains("Content-Length:");
                     if (b)
                     {
                         string length = receives[10].Split(':')[1];
@@ -185,7 +185,16 @@ namespace LoginServer
                         TCPClient_username = receives[7].Split(':')[1].Replace(" ", String.Empty);
                         TCPClient_password = receives[8].Split(':')[1].Replace(" ", String.Empty);
                         TCPClient_MapName = receives[9].Split(':')[1].Replace(" ", String.Empty);
-                        String[] contents = receives[11].Split(seperator1, StringSplitOptions.RemoveEmptyEntries);
+                        int startindex = 0;
+                        int i = 0;
+                        for (; i < 11; i++)
+                        {
+                            int templen = receives[i].Length+2; 
+                            startindex += templen;
+                        }
+                        startindex += 2;//\r\n
+                        string content1 = strfile.Substring(startindex);
+                        String[] contents = content1.Split(seperator1, StringSplitOptions.RemoveEmptyEntries);
                         if (contents.Length > 0)
                         {
                             filestringpayload = contents[0];

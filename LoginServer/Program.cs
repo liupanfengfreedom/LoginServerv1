@@ -40,12 +40,13 @@ namespace LoginServer
     }
     class Program
     {
-        
-
         static List<TCPClient> singinpool = new List<TCPClient>();
         private static readonly object singinLock = new object();
         static void Main(string[] args)
         {
+        String str1 = "histring";
+            string str2 = str1.Substring(2);
+
             IPAddress ipAd = IPAddress.Parse("192.168.1.240");
             TcpListener myList = new TcpListener(ipAd, 8002);
 
