@@ -9,8 +9,8 @@ namespace LoginServer
 {
     public class MySQLOperation
     {
-        //private readonly object ReadLock = new object();
-        private static readonly object ReadLock = new object();//try this if database concurrent operation is not enabled
+        private readonly object ReadLock = new object();
+        //private static readonly object ReadLock = new object();//try this if database concurrent operation is not enabled
         MySqlConnection connection = null;
         public static readonly String databasename = "usersdatabase2";
         public static readonly String tablebasename = "usersinfor2";
