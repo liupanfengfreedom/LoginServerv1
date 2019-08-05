@@ -54,8 +54,8 @@ namespace LoginServer
         }
         ~MySQLOperation()
         {
-            connection?.Close();
-
+            Console.WriteLine("MySQLOperation destructor");
+            //connection?.Close();
         }
         bool opendatabase()
         {
